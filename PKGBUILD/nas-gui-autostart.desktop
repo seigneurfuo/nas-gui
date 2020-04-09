@@ -1,0 +1,9 @@
+#!/usr/bin/env xdg-open
+[Desktop Entry]
+Type=Application
+Exec=python /usr/bin/nas-gui.py
+Name=NAS Gui
+Comment[fr_FR]=Application en zone de notification pour monter les différents partages du NAS
+StartupNotify=false
+Terminal=false
+Hidden=false
