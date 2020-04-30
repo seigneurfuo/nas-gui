@@ -20,6 +20,7 @@ from PyQt5.QtGui import QIcon
 changelogMessage = """
 <b>2020-04-30</b>
  - Déplacement de quelques informations de configuration dans un fichier<br>de configuration: ~/.config/nas-gui.ini
+ - Désactivation de la demande de montage quand pamac est ouvert
 
 <b>2020-04-09</b>
  - Modification du chemin pour les paquets Manjaro: x86_64
@@ -52,8 +53,8 @@ class TrayIcon(QSystemTrayIcon):
         self.isPackageMount = False
         self.shares = ["Fichiers", "Echange", "Packages", "Sauvegarde", "Temporaire", "Torrents", "Vidéos"]
 
-        self.pamac_thread = Thread(target=self.daemon)
-        self.pamac_thread.start()
+        #self.pamac_thread = Thread(target=self.daemon)
+        #self.pamac_thread.start()
 
     def read_config_file(self):
         config_file_path = os.path.join(Path.home(),".config", "nas-gui.ini")
