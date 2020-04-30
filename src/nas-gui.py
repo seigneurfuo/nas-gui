@@ -1,7 +1,10 @@
 #!/bin/env python
 
+import configparser
 import sys
 import os
+
+from pathlib import Path
 from subprocess import check_output
 from time import sleep
 
@@ -15,8 +18,12 @@ from PyQt5.QtGui import QIcon
 
 
 changelogMessage = """
+<b>2020-04-30</b>
+ - Déplacement de quelques informations de configuration dans un fichier<br>de configuration: ~/.config/nas-gui.ini
+
 <b>2020-04-09</b>
  - Modification du chemin pour les paquets Manjaro: x86_64
+
 <b>2020-03-18</b>
  - Ajout d'un nouveau partage "Sauvegarde Web"
  - Correction de la fermeture de l'application
@@ -35,18 +42,26 @@ class TrayIcon(QSystemTrayIcon):
     def __init__(self):
         super().__init__()
 
-        self.setIcon(QIcon.fromTheme("favorites"))
+        self.config = configparser.ConfigParser()
+        self.read_config_file()
 
         self.init_ui()
-        self.nasIp = "192.168.1.101"
-        self.nasBaseFolder = "{}:/volume1/".format(self.nasIp)
-        self.DSMUrl = "https://{}:5001".format(self.nasIp)
-        self.mountpoint = "/home/seigneurfuo/NAS"
+
+        self.nasBaseFolder = "{}:/volume1/".format(self.config["NAS"]["ip"])
+        self.mountpoint = self.config["Shares"]["default_mountpoint"]
         self.isPackageMount = False
         self.shares = ["Fichiers", "Echange", "Packages", "Sauvegarde", "Temporaire", "Torrents", "Vidéos"]
 
         self.pamac_thread = Thread(target=self.daemon)
         self.pamac_thread.start()
+
+    def read_config_file(self):
+        config_file_path = os.path.join(Path.home(),".config", "nas-gui.ini")
+        if not os.path.isfile(config_file_path):
+            exit(0)
+
+        self.config.read(config_file_path)
+
 
     def daemon(self):
         self.daemon_running = True
@@ -102,6 +117,7 @@ class TrayIcon(QSystemTrayIcon):
         self.menu.addSeparator()
         self.actionUsage = QAction(QIcon.fromTheme(""), "Utilisation ...")
         self.actionUsage.triggered.connect(self.usage_dialog)
+        #self.menu.addAction(self.actionUsage)
 
         self.actionOpenDSM = QAction(QIcon.fromTheme(""), "Ouvrir DSM ...")
         self.actionOpenDSM.triggered.connect(self.open_DSM)
@@ -119,16 +135,18 @@ class TrayIcon(QSystemTrayIcon):
         self.menu.addAction(self.actionQuit)
 
         self.setContextMenu(self.menu)
+
+        self.setIcon(QIcon.fromTheme("favorites"))
         self.setVisible(True)
 
     def mount_share(self, shareName):
-        """Command pour monter un partage grace à son nom"""
+        """Commande pour monter un partage grace à son nom"""
 
         # Identifiant et mot de passe
         #user, password = self.get_credentials()
 
         if shareName == "Packages":
-            remotePath = "{}/{}/manjaro/officiels".format(self.nasBaseFolder, shareName)
+            remotePath = "{}/{}/manjaro/x86_64".format(self.nasBaseFolder, shareName)
             localPath = "/var/cache/pacman/pkg"
             self.mount(remotePath, localPath)
 
@@ -175,7 +193,7 @@ class TrayIcon(QSystemTrayIcon):
         dialog.exec()
 
     def open_DSM(self):
-        open_new_tab(self.DSMUrl)
+        open_new_tab(self.config["NAS"]["DSM_url"])
 
     def umount_all(self):
         command = "pkexec umount {}/*".format(self.mountpoint)
