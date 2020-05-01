@@ -14,6 +14,7 @@ from PyQt5.QtGui import QIcon
 changelog_message = """
 <b>2020-05-01</b>
  - Ajout d'un nouveau système dynamique pour la création des entrées dans le menu
+ - Déplacement de toutes les informations en dur dans le fichier de configuration<br>(le seul encore en dur est le cache de pacman
  - Nettoyage du code
 
 <b>2020-04-30</b>
@@ -44,16 +45,14 @@ class TrayIcon(QSystemTrayIcon):
         self.read_config_file()
 
         # Chemin de base des partages sur le NAS
-        self.nas_base_folder = "{nas_ip}:/volume1".format(nas_ip=self.config["NAS"]["ip"])
+        self.nas_base_folder = "{nas_ip}:/volume1".format(nas_ip=self.config["Settings"]["ip"])
 
         # Point de montage par défaut
-        self.mountpoint = self.config["Shares"]["default_mountpoint"]
+        self.mountpoint = self.config["Settings"]["default_mountpoint"]
 
-        # Partages du menu
-        self.folders = [
-            {"name": "Fichiers", "icon": "folder"},
-            {"name": "Vidéos", "icon": "folder-videos"}
-        ]
+        # On veut récupérer la liste des partages. Chaque partage est definit en tant que section dans le fichier.
+        # Seule la section Settings est à retirer
+        self.folders = [section for section in self.config.sections() if section != "Settings"]
 
         # Actions du menu
         self.actions = [
@@ -85,8 +84,8 @@ class TrayIcon(QSystemTrayIcon):
 
         # Entrées de différents partages
         for folder in self.folders:
-            menu_action = self.menu.addAction(QIcon.fromTheme(folder["icon"]), folder["name"])
-            menu_action.triggered.connect(lambda lamdba, folder=folder: self.mount_share(folder["name"]))
+            menu_action = self.menu.addAction(QIcon.fromTheme(self.config[folder]["icon"]), self.config[folder]["name"])
+            menu_action.triggered.connect(lambda lamdba, folder=folder: self.mount_share(self.config[folder]["name"]))
 
         self.menu.addSeparator()
 
@@ -104,7 +103,7 @@ class TrayIcon(QSystemTrayIcon):
         # Application des élements au menu
         self.setContextMenu(self.menu)
 
-        self.setIcon(QIcon.fromTheme("favorites"))
+        self.setIcon(QIcon.fromTheme(self.config["Settings"]["tray_icon"]))
         self.setVisible(True)
 
     def show_changements(self):
@@ -126,7 +125,7 @@ class TrayIcon(QSystemTrayIcon):
         :return: None
         """
 
-        open_new_tab(self.config["NAS"]["DSM_url"])
+        open_new_tab(self.config["Settings"]["DSM_url"])
 
     def umount_all(self):
         """
