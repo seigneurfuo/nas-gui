@@ -1,3 +1,5 @@
 .idea/
 PKGBUILD/nas-gui.py
+PKGBUILD/pkg/
+PKGBUILD/src/
 nas-gui-*-x86_64.pkg.tar.xz
