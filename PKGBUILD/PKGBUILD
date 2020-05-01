@@ -2,10 +2,10 @@
 # Contributor: Agnésa Théo <seigneurfuo@protonmail.com>
 
 pkgname=nas-gui
-pkgver=2020.04.30
-pkgrel=2
+pkgver=2020.05.01
+pkgrel=1
 pkgdesc="Un programme qui permet de monter les partages réseaux du NAS depuis la zone de notification"
-arch=('x86_64')
+arch=("any")
 url="https://seigneurfuo.wordpress.com"
 license=('NONE')
 groups=("★ seigneurfuo: Paquets persos")
