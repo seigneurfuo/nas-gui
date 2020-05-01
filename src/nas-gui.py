@@ -1,23 +1,21 @@
-#!/bin/env python
+#!/bin/env python3
 
-import configparser
 import sys
 import os
+import configparser
 
 from pathlib import Path
-from subprocess import check_output
-from time import sleep
-
 from webbrowser import open_new_tab
-from os import system
-from threading import Thread
 
-from psutil import process_iter
+# PyQt5
 from PyQt5.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon, QMenu, QAction
 from PyQt5.QtGui import QIcon
 
+changelog_message = """
+<b>2020-05-01</b>
+ - Ajout d'un nouveau système dynamique pour la création des entrées dans le menu
+ - Nettoyage du code
 
-changelogMessage = """
 <b>2020-04-30</b>
  - Déplacement de quelques informations de configuration dans un fichier<br>de configuration: ~/.config/nas-gui.ini
  - Désactivation de la demande de montage quand pamac est ouvert
@@ -34,7 +32,7 @@ changelogMessage = """
 
 <b>2019-07-20</b>
  - Ajout d'une entrée "changements"
- - Création automatique des répertoires de montage s'il n'existent pas
+ - Création automatique des répertoires de montage s'ils n'existent pas
  - Ajout d'un choix qui permet d'afficher l'espace utilisé pour chaque partage
  - Ajout d'un lien pour acceder à la page DSM
 """
@@ -43,166 +41,147 @@ class TrayIcon(QSystemTrayIcon):
     def __init__(self):
         super().__init__()
 
-        self.config = configparser.ConfigParser()
         self.read_config_file()
+
+        # Chemin de base des partages sur le NAS
+        self.nas_base_folder = "{nas_ip}:/volume1".format(nas_ip=self.config["NAS"]["ip"])
+
+        # Point de montage par défaut
+        self.mountpoint = self.config["Shares"]["default_mountpoint"]
+
+        # Partages du menu
+        self.folders = [
+            {"name": "Fichiers", "icon": "folder"},
+            {"name": "Vidéos", "icon": "folder-videos"}
+        ]
+
+        # Actions du menu
+        self.actions = [
+            {"name": "Ouvrir DSM ...", "icon": "", "action": self.open_DSM, "separator": "before"},
+            {"name": "Liste des changements", "icon": "", "action": self.show_changements, "separator": None},
+            {"name": "Démonter TOUS les partages", "icon": "window-close", "action": self.umount_all, "separator": "before"},
+            {"name": "Quitter", "icon": "window-close", "action": self.close, "separator": "before"}
+        ]
 
         self.init_ui()
 
-        self.nasBaseFolder = "{}:/volume1/".format(self.config["NAS"]["ip"])
-        self.mountpoint = self.config["Shares"]["default_mountpoint"]
-        self.isPackageMount = False
-        self.shares = ["Fichiers", "Echange", "Packages", "Sauvegarde", "Temporaire", "Torrents", "Vidéos"]
-
-        #self.pamac_thread = Thread(target=self.daemon)
-        #self.pamac_thread.start()
-
     def read_config_file(self):
-        config_file_path = os.path.join(Path.home(),".config", "nas-gui.ini")
-        if not os.path.isfile(config_file_path):
+        self.config = configparser.ConfigParser()
+        self.config_file_path = os.path.join(Path.home(),".config", "nas-gui.ini")
+
+        if not os.path.isfile(self.config_file_path):
             exit(0)
 
-        self.config.read(config_file_path)
-
-
-    def daemon(self):
-        self.daemon_running = True
-        while self.daemon_running:
-            for proc in process_iter():
-                if proc.name() == "pamac-manager":
-                    self.mount_share("Packages")
-                    running = False
-
-            sleep(1)
-
+        self.config.read(self.config_file_path)
 
     def init_ui(self):
+        """
+        Fonction d'initialisation de l'interface
+
+        :return: None
+        """
+
         self.menu = QMenu()
 
-        self.actionFichiers = QAction(QIcon.fromTheme("folder"), "Fichiers")
-        self.actionFichiers.triggered.connect(lambda: self.mount_share("Fichiers"))
-        self.menu.addAction(self.actionFichiers)
-
-        self.actionEchange = QAction(QIcon.fromTheme("fitwidth"), "Echange")
-        self.actionEchange.triggered.connect(lambda: self.mount_share("Echange"))
-        self.menu.addAction(self.actionEchange)
-
-        self.actionPackages = QAction(QIcon.fromTheme("package"), "Packages")
-        self.actionPackages.triggered.connect(lambda: self.mount_share("Packages"))
-        self.menu.addAction(self.actionPackages)
-
-        self.actionSauvegarde = QAction(QIcon.fromTheme("folder-backup"), "Sauvegarde")
-        self.actionSauvegarde.triggered.connect(lambda: self.mount_share("Sauvegarde"))
-        self.menu.addAction(self.actionSauvegarde)
-
-        self.actionSauvegardeWeb = QAction(QIcon.fromTheme("web-browser"), "Sauvegarde Web")
-        self.actionSauvegardeWeb.triggered.connect(lambda: self.mount_share("Sauvegarde-web"))
-        self.menu.addAction(self.actionSauvegardeWeb)
-
-        self.actionTemporaire = QAction(QIcon.fromTheme("folder-temp"), "Temporaire")
-        self.actionTemporaire.triggered.connect(lambda: self.mount_share("Temporaire"))
-        self.menu.addAction(self.actionTemporaire)
-
-        self.actionTorrents = QAction(QIcon.fromTheme("folder-download"), "Torrents")
-        self.actionTorrents.triggered.connect(lambda: self.mount_share("Torrents"))
-        self.menu.addAction(self.actionTorrents)
-
-        self.actionVideos = QAction(QIcon.fromTheme("folder-videos"), "Vidéos")
-        self.actionVideos.triggered.connect(lambda: self.mount_share("Vidéos"))
-        self.menu.addAction(self.actionVideos)
+        # Entrées de différents partages
+        for folder in self.folders:
+            menu_action = self.menu.addAction(QIcon.fromTheme(folder["icon"]), folder["name"])
+            menu_action.triggered.connect(lambda lamdba, folder=folder: self.mount_share(folder["name"]))
 
         self.menu.addSeparator()
-        self.actionUnmountAll = QAction(QIcon.fromTheme("window-close"), "Démonter TOUS les partages")
-        self.actionUnmountAll.triggered.connect(self.umount_all)
-        self.menu.addAction(self.actionUnmountAll)
 
-        self.menu.addSeparator()
-        self.actionUsage = QAction(QIcon.fromTheme(""), "Utilisation ...")
-        self.actionUsage.triggered.connect(self.usage_dialog)
-        #self.menu.addAction(self.actionUsage)
+        # Entrées des différentes actions
+        for action in self.actions:
+            if action["separator"] == "before":
+                self.menu.addSeparator()
 
-        self.actionOpenDSM = QAction(QIcon.fromTheme(""), "Ouvrir DSM ...")
-        self.actionOpenDSM.triggered.connect(self.open_DSM)
-        self.menu.addAction(self.actionOpenDSM)
+            menu_action = self.menu.addAction(QIcon.fromTheme(action["icon"]), action["name"])
+            menu_action.triggered.connect(action["action"])
 
-        self.menu.addSeparator()
-        self.actionChangements = QAction(QIcon.fromTheme(""), "Liste des changements")
-        self.actionChangements.triggered.connect(self.show_changements)
-        self.menu.addAction(self.actionChangements)
+            if action["separator"] == "after":
+                self.menu.addSeparator()
 
-
-        self.menu.addSeparator()
-        self.actionQuit = QAction(QIcon.fromTheme("window-close"), "Quitter")
-        self.actionQuit.triggered.connect(self.close)
-        self.menu.addAction(self.actionQuit)
-
+        # Application des élements au menu
         self.setContextMenu(self.menu)
 
         self.setIcon(QIcon.fromTheme("favorites"))
         self.setVisible(True)
 
-    def mount_share(self, shareName):
-        """Commande pour monter un partage grace à son nom"""
+    def show_changements(self):
+        """
+        Affiche la fenêtre des changements
+
+        :return: None
+        """
+
+        dialog = QMessageBox()
+        dialog.setWindowTitle("Liste des changements")
+        dialog.setText("<p>" + changelog_message.replace("\n", "<br>") + "</p>")
+        dialog.exec()
+
+    def open_DSM(self):
+        """
+        Ouvre l'interface de DSM dans le navigateur par défaut
+
+        :return: None
+        """
+
+        open_new_tab(self.config["NAS"]["DSM_url"])
+
+    def umount_all(self):
+        """
+        Fonction qui permet de démonter tous les partages
+
+        :return: None
+        """
+
+        command = "pkexec umount {path}/*".format(path=self.mountpoint)
+        os.system(command)
+
+    def mount_share(self, folder_name):
+        """
+        Fonction pour monter un partage grace à son nom
+
+        :param folder_name: Nom du partage à monter
+        :return: None
+        """
 
         # Identifiant et mot de passe
         #user, password = self.get_credentials()
 
-        if shareName == "Packages":
-            remotePath = "{}/{}/manjaro/x86_64".format(self.nasBaseFolder, shareName)
-            localPath = "/var/cache/pacman/pkg"
-            self.mount(remotePath, localPath)
+        # Pour le partage, on monte un dossier qui n'est pas conventionnel en terme de chemin
+        if folder_name == "Packages":
+            remote_path = "{}/{}/manjaro/x86_64".format(self.nas_base_folder, folder_name)
+            local_path = "/var/cache/pacman/pkg"
+            self.mount(remote_path, local_path)
 
-        remotePath = "{}/{}".format(self.nasBaseFolder, shareName)
-        localPath = "{}/{}".format(self.mountpoint, shareName)
+        remote_path = "{}/{}".format(self.nas_base_folder, folder_name)
+        local_path = "{}/{}".format(self.mountpoint, folder_name)
 
-        if not os.path.exists(localPath):
-            os.makedirs(localPath)
+        # Création automatique du dossier de partage
+        if not os.path.exists(local_path):
+            os.makedirs(local_path)
 
-        self.mount(remotePath, localPath)
+        self.mount(remote_path, local_path)
 
-    def mount(self, remotePath, localPath):
-        if os.path.ismount(localPath): self.showMessage("Partage déja monté", "Le partage selectionné est déja monté")
+    def mount(self, remote_path, local_path):
+        """
+        Fonction qui permet de monter un chemin distant
+
+        :param remote_path: Chemin distant
+        :param local_path: Chemin local
+        :return: None
+        """
+
+        if os.path.ismount(local_path): self.showMessage("Partage déja monté", "Le partage selectionné est déja monté")
         else:
-            command = "pkexec mount {} {}".format(remotePath, localPath)
+            command = "pkexec mount {} {}".format(remote_path, local_path)
             #command = "mount -t cifs {} {} -o username={},password={}".format(remotePath, localPath, user, password) #,uid=1000,gid=1000
-            system(command)
+            os.system(command)
             self.showMessage("Commande", command)
-
-    def show_changements(self):
-        dialog = QMessageBox()
-        dialog.setWindowTitle("Liste des changements")
-        dialog.setText("<p>" + changelogMessage.replace("\n", "<br>") + "</p>")
-        dialog.exec()
-
-    def usage_dialog(self):
-        text = "<p>"
-        for index, share in enumerate(self.shares):
-            localPath = "{}/{}".format(self.mountpoint, share)
-
-            # Si le dossier n'est pas vide (donc que le partage est monté)
-            if os.listdir(localPath):
-                size = check_output(['du', '-sh', localPath]).split()[0].decode('utf-8')
-            else:
-                size = "Déconnecté"
-
-            text += "<b>{}:</b> {}<br>".format(share, size)
-
-        text += "</p>"
-
-        dialog = QMessageBox()
-        dialog.setWindowTitle("Liste des changements")
-        dialog.setText("<p>" + text + "</p>")
-        dialog.exec()
-
-    def open_DSM(self):
-        open_new_tab(self.config["NAS"]["DSM_url"])
-
-    def umount_all(self):
-        command = "pkexec umount {}/*".format(self.mountpoint)
-        system(command)
 
     def close(self):
         self.setVisible(False)
-        self.daemon_running = False
         exit(0)
 
 
