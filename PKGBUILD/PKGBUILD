@@ -11,7 +11,7 @@ license=('NONE')
 groups=("★ seigneurfuo: Paquets persos")
 depends=('python' 'python-pyqt5')
 source=("nas-gui.py" "nas-gui.desktop" "nas-gui-autostart.desktop")
-md5sums=('ff7fcc9b56ebf018e88c6983a652aef3'
+md5sums=('f23634022a833e6ef59788fe5ca3804a'
          'c48ceec4ec0b2c6b387764802340f34d'
          'efa6194ab06e025f64d06c0268fd97b8')
 

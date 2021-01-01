@@ -12,6 +12,9 @@ from PyQt5.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon, QMenu, Q
 from PyQt5.QtGui import QIcon
 
 changelog_message = """
+<b>2020-05-31</b>
+ - Possibilité de configurer le mode de montage (SMB ou NFS dans le fichier<br>de configuration
+
 <b>2020-05-01</b>
  - Ajout d'un nouveau système dynamique pour la création des entrées dans le menu
  - Déplacement de toutes les informations en dur dans le fichier de configuration<br>(le seul encore en dur est le cache de pacman
@@ -45,7 +48,8 @@ class TrayIcon(QSystemTrayIcon):
         self.read_config_file()
 
         # Chemin de base des partages sur le NAS
-        self.nas_base_folder = "{nas_ip}:/volume1".format(nas_ip=self.config["Settings"]["ip"])
+        self.nas_smb_base_folder = ""
+        self.nas_nfs_base_folder = "{nas_ip}:/volume1".format(nas_ip=self.config["Settings"]["ip"])
 
         # Point de montage par défaut
         self.mountpoint = self.config["Settings"]["default_mountpoint"]
@@ -56,10 +60,25 @@ class TrayIcon(QSystemTrayIcon):
 
         # Actions du menu
         self.actions = [
-            {"name": "Ouvrir DSM ...", "icon": "", "action": self.open_DSM, "separator": "before"},
-            {"name": "Liste des changements", "icon": "", "action": self.show_changements, "separator": None},
-            {"name": "Démonter TOUS les partages", "icon": "window-close", "action": self.umount_all, "separator": "before"},
-            {"name": "Quitter", "icon": "window-close", "action": self.close, "separator": "before"}
+            {"name":"Ouvrir DSM ...",
+                "icon": "",
+                "action": self.open_DSM,
+                "separator": "before"},
+
+            {"name": "Changements",
+                 "icon": "",
+                 "action": self.show_changements,
+                 "separator": None},
+
+            {"name": "Démonter TOUS les partages",
+                 "icon": "window-close",
+                 "action": self.umount_all,
+                 "separator": "before"},
+
+            {"name": "Quitter",
+                 "icon": "window-close",
+                 "action": self.close,
+                 "separator": "before"}
         ]
 
         self.init_ui()
@@ -84,8 +103,13 @@ class TrayIcon(QSystemTrayIcon):
 
         # Entrées de différents partages
         for folder in self.folders:
-            menu_action = self.menu.addAction(QIcon.fromTheme(self.config[folder]["icon"]), self.config[folder]["name"])
-            menu_action.triggered.connect(lambda lamdba, folder=folder: self.mount_share(self.config[folder]["name"]))
+            share_name = self.config[folder]["name"]
+            protocol = self.config[folder]["protocol"]
+            icon = QIcon.fromTheme(self.config[folder]["icon"])
+            label = "{name} ({protocol})".format(name=share_name, protocol=protocol.upper())
+
+            menu_action = self.menu.addAction(icon, label)
+            menu_action.triggered.connect(lambda lamdba, share_name=share_name: self.mount_share(share_name))
 
         self.menu.addSeparator()
 
@@ -114,7 +138,7 @@ class TrayIcon(QSystemTrayIcon):
         """
 
         dialog = QMessageBox()
-        dialog.setWindowTitle("Liste des changements")
+        dialog.setWindowTitle("Changements")
         dialog.setText("<p>" + changelog_message.replace("\n", "<br>") + "</p>")
         dialog.exec()
 
@@ -137,11 +161,11 @@ class TrayIcon(QSystemTrayIcon):
         command = "pkexec umount {path}/*".format(path=self.mountpoint)
         os.system(command)
 
-    def mount_share(self, folder_name):
+    def mount_share(self, share_name):
         """
         Fonction pour monter un partage grace à son nom
 
-        :param folder_name: Nom du partage à monter
+        :param share_name: Nom du partage à monter
         :return: None
         """
 
@@ -149,21 +173,28 @@ class TrayIcon(QSystemTrayIcon):
         #user, password = self.get_credentials()
 
         # Pour le partage, on monte un dossier qui n'est pas conventionnel en terme de chemin
-        if folder_name == "Packages":
-            remote_path = "{}/{}/manjaro/x86_64".format(self.nas_base_folder, folder_name)
+        if share_name == "Packages":
+            remote_path = "{}/{}/manjaro/x86_64".format(self.nas_nfs_base_folder, share_name)
             local_path = "/var/cache/pacman/pkg"
-            self.mount(remote_path, local_path)
+            self.mount_nfs(remote_path, local_path)
 
-        remote_path = "{}/{}".format(self.nas_base_folder, folder_name)
-        local_path = "{}/{}".format(self.mountpoint, folder_name)
 
+        local_path = "{}/{}".format(self.mountpoint, share_name)
         # Création automatique du dossier de partage
         if not os.path.exists(local_path):
             os.makedirs(local_path)
 
-        self.mount(remote_path, local_path)
+        # SMB
+        if  self.config[share_name]["protocol"] == "smb":
+            remote_path = "{}/{}".format(self.nas_smb_base_folder, share_name)
+            self.mount_smb(remote_path, local_path)
 
-    def mount(self, remote_path, local_path):
+        # NFS
+        else:
+            remote_path = "{}/{}".format(self.nas_nfs_base_folder, share_name)
+            self.mount_nfs(remote_path, local_path)
+
+    def mount_nfs(self, remote_path, local_path):
         """
         Fonction qui permet de monter un chemin distant
 
@@ -172,12 +203,17 @@ class TrayIcon(QSystemTrayIcon):
         :return: None
         """
 
-        if os.path.ismount(local_path): self.showMessage("Partage déja monté", "Le partage selectionné est déja monté")
+        if os.path.ismount(local_path):
+            self.showMessage("Partage déja monté", "Le partage selectionné est déja monté", 1000)
+
         else:
             command = "pkexec mount {} {}".format(remote_path, local_path)
             #command = "mount -t cifs {} {} -o username={},password={}".format(remotePath, localPath, user, password) #,uid=1000,gid=1000
             os.system(command)
-            self.showMessage("Commande", command)
+            self.showMessage("Commande", command, 1000)
+
+    def mount_smb(self, remote_path, local_path):
+        pass
 
     def close(self):
         self.setVisible(False)
