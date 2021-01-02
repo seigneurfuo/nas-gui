@@ -41,6 +41,7 @@ changelog_message = """
  - Ajout d'un lien pour acceder à la page DSM
 """
 
+
 class TrayIcon(QSystemTrayIcon):
     def __init__(self):
         super().__init__()
@@ -83,14 +84,20 @@ class TrayIcon(QSystemTrayIcon):
 
         self.init_ui()
 
+
     def read_config_file(self):
         self.config = configparser.ConfigParser()
-        self.config_file_path = os.path.join(Path.home(),".config", "nas-gui.ini")
+        self.config_file_path = os.path.join(Path.home(),".cdonfig", "nas-gui.conf")
 
         if not os.path.isfile(self.config_file_path):
+            msg = "Fichier de configuration inexistant ! <br> Veuillez renseigner la configuration dans le fichier: <br><b>{}</b>".format(self.config_file_path)
+            qmessagebox = QMessageBox(QMessageBox.Critical, "Fichier de configuration inexistant", msg)
+            qmessagebox.show()
+            qmessagebox.exec_()
             exit(0)
 
         self.config.read(self.config_file_path)
+
 
     def init_ui(self):
         """
@@ -130,6 +137,7 @@ class TrayIcon(QSystemTrayIcon):
         self.setIcon(QIcon.fromTheme(self.config["Settings"]["tray_icon"]))
         self.setVisible(True)
 
+
     def show_changements(self):
         """
         Affiche la fenêtre des changements
@@ -142,6 +150,7 @@ class TrayIcon(QSystemTrayIcon):
         dialog.setText("<p>" + changelog_message.replace("\n", "<br>") + "</p>")
         dialog.exec()
 
+
     def open_DSM(self):
         """
         Ouvre l'interface de DSM dans le navigateur par défaut
@@ -150,6 +159,7 @@ class TrayIcon(QSystemTrayIcon):
         """
 
         open_new_tab(self.config["Settings"]["DSM_url"])
+
 
     def umount_all(self):
         """
@@ -160,6 +170,7 @@ class TrayIcon(QSystemTrayIcon):
 
         command = "pkexec umount {path}/*".format(path=self.mountpoint)
         os.system(command)
+
 
     def mount_share(self, share_name):
         """
@@ -194,6 +205,7 @@ class TrayIcon(QSystemTrayIcon):
             remote_path = "{}/{}".format(self.nas_nfs_base_folder, share_name)
             self.mount_nfs(remote_path, local_path)
 
+
     def mount_nfs(self, remote_path, local_path):
         """
         Fonction qui permet de monter un chemin distant
@@ -214,6 +226,7 @@ class TrayIcon(QSystemTrayIcon):
 
     def mount_smb(self, remote_path, local_path):
         pass
+
 
     def close(self):
         self.setVisible(False)
