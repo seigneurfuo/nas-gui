@@ -8,16 +8,21 @@ import shutil
 from pathlib import Path
 from webbrowser import open_new_tab
 
+from PyQt5.Qt import pyqtSlot
 from PyQt5.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon, QMenu
 from PyQt5.QtGui import QIcon
 
 changelog_message = """
+<b>2020-01-02</b>
+ - Ajout d'une nouvelle fonction permettant de changer le protocole utilisé pour monter les partages depuis le menu
+ - Modification du fichier de configuration pour prendre en compte le changement de protocole
+ - Correction d'une inversion entre le chemin distant entre SSHFS et NFS.
+
 <b>2020-01-01</b>
  - Bonne année 2021!
  - Ajout d'un protocol de connection en sshds afin de permetre de la lecture seule sur certains répertoires. Pas de MDP
    demandé: Il faut copier ces clefs SSH avec la commande: <i>ssh-copy-id</i>
  - Ajout d'un message d'erreur si le fichier de configuration n'existe pas
- 
 
 <b>2020-05-31</b>
  - Possibilité de configurer le mode de montage (SMB ou NFS) dans le fichier<br>de configuration
@@ -49,7 +54,7 @@ changelog_message = """
 """
 
 
-class TrayIcon(QSystemTrayIcon):
+class SystemTrayApplication(QSystemTrayIcon):
     def __init__(self):
         super().__init__()
 
@@ -61,6 +66,11 @@ class TrayIcon(QSystemTrayIcon):
 
         # Point de montage par défaut
         self.mountpoint = self.config["Settings"]["default_mountpoint"]
+
+        # Protocole de montage par défaut
+        self.protocols = ["nfs", "sshfs"]
+        self.protocol_index = 0
+        self.current_protocol = self.protocols[self.protocol_index]
 
         # On veut récupérer la liste des partages. Chaque partage est definit en tant que section dans le fichier.
         # Seule la section Settings est à retirer
@@ -115,18 +125,29 @@ class TrayIcon(QSystemTrayIcon):
 
         self.menu = QMenu()
 
+        # Boutton de modification du protocole
+        self.menu.addSeparator()
+        protocol_change_checkbox = self.menu.addAction(QIcon(), "")
+        protocol_change_checkbox.setCheckable(False)
+        protocol_change_checkbox.triggered.connect(self.on_protocol_change_checkbox_clicked)
+        self.protocol_label_set_text(protocol_change_checkbox)
+        self.menu.addSeparator()
+
         # Entrées de différents partages
         for folder in self.folders:
             share_name = self.config[folder]["name"]
-            protocol = self.config[folder]["protocol"]
+            protocol = "{nfs}{separator}{sshfs}".format(
+                nfs=("nfs" if self.config[folder]["nfs"] == "1" else ""),
+                sshfs=("sshfs" if self.config[folder]["sshfs"] == "1" else ""),
+                separator=(" / " if self.config[folder]["nfs"] == "1" and self.config[folder]["sshfs"] == "1" else "")
+            )
+
             icon = QIcon.fromTheme(self.config[folder]["icon"])
             label = "{name} ({protocol})".format(name=share_name, protocol=protocol.upper())
 
             menu_action = self.menu.addAction(icon, label)
             menu_action.setCheckable(False)
             menu_action.triggered.connect(lambda lamdba, share_name=share_name, menu_action=menu_action: self.mount_share(share_name, menu_action))
-
-        self.menu.addSeparator()
 
         # Entrées des différentes actions
         for action in self.actions:
@@ -145,8 +166,37 @@ class TrayIcon(QSystemTrayIcon):
         self.setIcon(QIcon.fromTheme(self.config["Settings"]["tray_icon"]))
         self.setVisible(True)
 
-    def on_systray_activated(self, i_reason):
-        self.menu.show()
+
+    @pyqtSlot()
+    def on_protocol_change_checkbox_clicked(self):
+        """
+        Action lorsque le bouton du protocole est cliqué
+
+        :return: None
+        """
+
+        menu_action = self.sender()
+
+        # Si 0 alors 1 et si 1 alors 0
+        self.protocol_index = int(not self.protocol_index)
+        self.current_protocol = self.protocols[self.protocol_index]
+
+        self.protocol_label_set_text(menu_action)
+
+        # Permet de réafficher le menu (en tant normal, le menu se ferme si l'on clique sur une des actions)
+        self.contextMenu().show()
+
+
+    def protocol_label_set_text(self, menu_action):
+        """
+        Fonction qui permet de changer le texte du protocol utilisé dans le menu
+
+        :param menu_action:
+        :return: None
+        """
+
+        msg = "Protocole actuel: {protocol}".format(protocol=self.current_protocol)
+        menu_action.setText(msg)
 
 
     def show_changelog(self):
@@ -190,9 +240,6 @@ class TrayIcon(QSystemTrayIcon):
         :return: None
         """
 
-        # Identifiant et mot de passe
-        #user, password = self.get_credentials()
-
         # Pour le partage, on monte un dossier qui n'est pas conventionnel en terme de chemin
         if share_name == "Packages":
             remote_path = "{}/{}/manjaro/x86_64".format(self.nas_nfs_base_folder, share_name)
@@ -200,12 +247,12 @@ class TrayIcon(QSystemTrayIcon):
             self.mount_nfs(remote_path, local_path)
 
         local_path = "{}/{}".format(self.mountpoint, share_name)
-        remote_path = "{}/{}".format(self.nas_sshfs_base_folder, share_name)
 
         # Création automatique du dossier de partage
         if not os.path.exists(local_path):
             os.makedirs(local_path)
 
+        # FIXME: Changer le type de véfiriccation. Il est impossible pour le moment de passer de NFS à SSHDS et inversement s'il le partage est déja monté
         # Si déja monté
         if os.path.ismount(local_path):
             msg = "Le partage {} est déja monté".format(local_path)
@@ -213,18 +260,35 @@ class TrayIcon(QSystemTrayIcon):
 
         # Si pas monté
         else:
-            # sshfs
-            if self.config[share_name]["protocol"] == "sshfs":
-                self.mount_sshfs(remote_path, local_path, menu_action)
+            # On choisi le protocol actuel pour monter le dossier. Si le partage ne peut pas etre monté avec le protocol actuel,
+            # alors on repasse le monte avec l'autre protocole
+
+            # On regarde si on peut monter le dossier avec le protocol actuel ou non
+            if self.config[share_name][self.current_protocol] == "1":
+                if self.current_protocol == "nfs":
+                    remote_path = "{}/{}".format(self.nas_nfs_base_folder, share_name)
+                    self.mount_nfs(remote_path, local_path, menu_action)
+
+                elif self.current_protocol == "sshfs":
+                    remote_path = "{}/{}".format(self.nas_sshfs_base_folder, share_name)
+                    self.mount_sshfs(remote_path, local_path, menu_action)
+
+            # Sinon, on le monte avec l'un ou l'autre
 
             # NFS
-            elif self.config[share_name]["protocol"] == "nfs":
+            elif self.config[share_name]["nfs"] == "1":
+                remote_path = "{}/{}".format(self.nas_nfs_base_folder, share_name)
                 self.mount_nfs(remote_path, local_path, menu_action)
+
+            # sshfs
+            elif self.config[share_name]["sshfs"] == "1":
+                remote_path = "{}/{}".format(self.nas_sshfs_base_folder, share_name)
+                self.mount_sshfs(remote_path, local_path, menu_action)
 
 
     def mount_nfs(self, remote_path, local_path, menu_action=None):
         """
-        Fonction qui permet de monter un chemin distant
+        Fonction pour monter les partages NFS
 
         :param remote_path: Chemin distant
         :param local_path: Chemin local
@@ -237,15 +301,26 @@ class TrayIcon(QSystemTrayIcon):
         else:
             command = "pkexec mount {remote_path} {local_path}".format(remote_path=remote_path, local_path=local_path)
             #command = "mount -t cifs {} {} -o username={},password={}".format(remotePath, localPath, user, password) #,uid=1000,gid=1000
+            print(command)
             os.system(command)
-            self.showMessage("Commande", command, 1000)
+            msg = "Partage: {local_path} monté avec NFS".format(local_path=local_path)
+            self.showMessage("Commande", msg, 1000)
 
         # On coche l'action dans le menu pour indique le dossier est bien monté
         if menu_action: # Pour contourner Package qui monte sans action
             menu_action.setCheckable(True)
             menu_action.setChecked(True)
 
+
     def mount_sshfs(self, remote_path, local_path, menu_action):
+        """
+        Fonction pour monter les partages SSHFS
+
+        :param remote_path: Chemin distant
+        :param local_path: Chemin local
+        :param menu_action:
+        :return: None
+        """
         if not shutil.which("sshfs"):
             msg = "Le montage <b>{local_path}</b> est configuré pour etre monté avec sshfs. <br>Cependant l'executable sshfs n'est pas installé.".format(local_path=local_path)
             qmessagebox = QMessageBox(QMessageBox.Critical, "Executable inexistant", msg)
@@ -255,8 +330,16 @@ class TrayIcon(QSystemTrayIcon):
 
         else :
             command = "sshfs {username}@{remote_path} {local_path} -o ro".format(username=self.config["Settings"]["sshfs_user"], remote_path=remote_path, local_path=local_path)
+            print(command)
             os.system(command)
-            self.showMessage("Commande", command, 1000)
+            msg = "Partage: {local_path} monté avec SSHFS".format(local_path=local_path)
+            self.showMessage("Commande", msg, 1000)
+
+        # On coche l'action dans le menu pour indique le dossier est bien monté
+        if menu_action: # Pour contourner Package qui monte sans action
+            menu_action.setCheckable(True)
+            menu_action.setChecked(True)
+
 
     def close(self):
         self.setVisible(False)
@@ -266,8 +349,9 @@ class TrayIcon(QSystemTrayIcon):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     app.setApplicationName("NAS-Gui")
+    app.setQuitOnLastWindowClosed(False)
 
-    tray = TrayIcon()
-    tray.show()
+    system_tray_application = SystemTrayApplication()
+    system_tray_application.show()
 
     sys.exit(app.exec_())
