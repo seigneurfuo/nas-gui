@@ -13,6 +13,9 @@ from PyQt5.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon, QMenu
 from PyQt5.QtGui import QIcon
 
 changelog_message = """
+<b>2020-01-17</b>
+ - Ajout du démontage lors du changement de protole.
+
 <b>2020-01-02</b>
  - Ajout d'une nouvelle fonction permettant de changer le protocole utilisé pour monter les partages depuis le menu
  - Modification du fichier de configuration pour prendre en compte le changement de protocole
