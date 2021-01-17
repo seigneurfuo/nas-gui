@@ -221,6 +221,17 @@ class SystemTrayApplication(QSystemTrayIcon):
         open_new_tab(self.config["Settings"]["DSM_url"])
 
 
+    def umount(self, local_path):
+        """
+        Fonction qui permet de démonter le partage sélectionné
+
+        :return: None
+        """
+
+        command = "pkexec umount {path}".format(path=local_path)
+        os.system(command)
+
+
     def umount_all(self):
         """
         Fonction qui permet de démonter tous les partages
@@ -255,35 +266,35 @@ class SystemTrayApplication(QSystemTrayIcon):
         # FIXME: Changer le type de véfiriccation. Il est impossible pour le moment de passer de NFS à SSHDS et inversement s'il le partage est déja monté
         # Si déja monté
         if os.path.ismount(local_path):
-            msg = "Le partage {} est déja monté".format(local_path)
-            self.showMessage("Partage déja monté", msg, 1000)
+            self.umount(local_path)
 
-        # Si pas monté
-        else:
-            # On choisi le protocol actuel pour monter le dossier. Si le partage ne peut pas etre monté avec le protocol actuel,
-            # alors on repasse le monte avec l'autre protocole
+            #msg = "Le partage {} est déja monté".format(local_path)
+            #self.showMessage("Partage déja monté", msg, 1000)
 
-            # On regarde si on peut monter le dossier avec le protocol actuel ou non
-            if self.config[share_name][self.current_protocol] == "1":
-                if self.current_protocol == "nfs":
-                    remote_path = "{}/{}".format(self.nas_nfs_base_folder, share_name)
-                    self.mount_nfs(remote_path, local_path, menu_action)
+        # On choisi le protocol actuel pour monter le dossier. Si le partage ne peut pas etre monté avec le protocol actuel,
+        # alors on repasse le monte avec l'autre protocole
 
-                elif self.current_protocol == "sshfs":
-                    remote_path = "{}/{}".format(self.nas_sshfs_base_folder, share_name)
-                    self.mount_sshfs(remote_path, local_path, menu_action)
-
-            # Sinon, on le monte avec l'un ou l'autre
-
-            # NFS
-            elif self.config[share_name]["nfs"] == "1":
+        # On regarde si on peut monter le dossier avec le protocol actuel ou non
+        if self.config[share_name][self.current_protocol] == "1":
+            if self.current_protocol == "nfs":
                 remote_path = "{}/{}".format(self.nas_nfs_base_folder, share_name)
                 self.mount_nfs(remote_path, local_path, menu_action)
 
-            # sshfs
-            elif self.config[share_name]["sshfs"] == "1":
+            elif self.current_protocol == "sshfs":
                 remote_path = "{}/{}".format(self.nas_sshfs_base_folder, share_name)
                 self.mount_sshfs(remote_path, local_path, menu_action)
+
+        # Sinon, on le monte avec l'un ou l'autre
+
+        # NFS
+        elif self.config[share_name]["nfs"] == "1":
+            remote_path = "{}/{}".format(self.nas_nfs_base_folder, share_name)
+            self.mount_nfs(remote_path, local_path, menu_action)
+
+        # sshfs
+        elif self.config[share_name]["sshfs"] == "1":
+            remote_path = "{}/{}".format(self.nas_sshfs_base_folder, share_name)
+            self.mount_sshfs(remote_path, local_path, menu_action)
 
 
     def mount_nfs(self, remote_path, local_path, menu_action=None):
