@@ -13,6 +13,9 @@ from PyQt5.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon, QMenu
 from PyQt5.QtGui import QIcon
 
 changelog_message = """
+<b>2022-01-31</b>
+ - Récupération du retour de la commande mount afin d'afficher un message différent si quelque chose c'est mal passé.
+
 <b>2020-01-17</b>
  - Ajout du démontage lors du changement de protole.
 
@@ -81,43 +84,42 @@ class SystemTrayApplication(QSystemTrayIcon):
 
         # Actions du menu
         self.actions = [
-            {"name":"Ouvrir DSM ...",
-                "icon": "",
-                "action": self.open_DSM,
-                "separator": "before"},
+            {"name": "Ouvrir DSM ...",
+             "icon": "",
+             "action": self.open_dsm,
+             "separator": "before"},
 
             {"name": "Changements",
-                 "icon": "",
-                 "action": self.show_changelog,
-                 "separator": None},
+             "icon": "",
+             "action": self.show_changelog,
+             "separator": None},
 
             {"name": "Démonter TOUS les partages",
-                 "icon": "window-close",
-                 "action": self.umount_all,
-                 "separator": "before"},
+             "icon": "window-close",
+             "action": self.umount_all,
+             "separator": "before"},
 
             {"name": "Quitter",
-                 "icon": "window-close",
-                 "action": self.close,
-                 "separator": "before"}
+             "icon": "window-close",
+             "action": self.close,
+             "separator": "before"}
         ]
 
         self.init_ui()
 
-
     def read_config_file(self):
         self.config = configparser.ConfigParser()
-        self.config_file_path = os.path.join(Path.home(),".config", "nas-gui.conf")
+        self.config_file_path = os.path.join(Path.home(), ".config", "nas-gui.conf")
 
         if not os.path.isfile(self.config_file_path):
-            msg = "Fichier de configuration inexistant ! <br> Veuillez renseigner la configuration dans le fichier: <br><b>{}</b>".format(self.config_file_path)
+            msg = "Fichier de configuration inexistant ! <br> Veuillez renseigner la configuration dans le fichier: <br><b>{}</b>".format(
+                self.config_file_path)
             qmessagebox = QMessageBox(QMessageBox.Critical, "Fichier de configuration inexistant", msg)
             qmessagebox.show()
             qmessagebox.exec_()
             exit(0)
 
         self.config.read(self.config_file_path)
-
 
     def init_ui(self):
         """
@@ -150,7 +152,9 @@ class SystemTrayApplication(QSystemTrayIcon):
 
             menu_action = self.menu.addAction(icon, label)
             menu_action.setCheckable(False)
-            menu_action.triggered.connect(lambda lamdba, share_name=share_name, menu_action=menu_action: self.mount_share(share_name, menu_action))
+            menu_action.triggered.connect(
+                lambda lamdba, share_name=share_name, menu_action=menu_action: self.mount_share(share_name,
+                                                                                                menu_action))
 
         # Entrées des différentes actions
         for action in self.actions:
@@ -168,7 +172,6 @@ class SystemTrayApplication(QSystemTrayIcon):
 
         self.setIcon(QIcon.fromTheme(self.config["Settings"]["tray_icon"]))
         self.setVisible(True)
-
 
     @pyqtSlot()
     def on_protocol_change_checkbox_clicked(self):
@@ -189,7 +192,6 @@ class SystemTrayApplication(QSystemTrayIcon):
         # Permet de réafficher le menu (en tant normal, le menu se ferme si l'on clique sur une des actions)
         self.contextMenu().show()
 
-
     def protocol_label_set_text(self, menu_action):
         """
         Fonction qui permet de changer le texte du protocol utilisé dans le menu
@@ -200,7 +202,6 @@ class SystemTrayApplication(QSystemTrayIcon):
 
         msg = "Protocole actuel: {protocol}".format(protocol=self.current_protocol)
         menu_action.setText(msg)
-
 
     def show_changelog(self):
         """
@@ -213,8 +214,7 @@ class SystemTrayApplication(QSystemTrayIcon):
         dialog = QMessageBox(QMessageBox.Information, "Liste des changements", msg)
         dialog.exec_()
 
-
-    def open_DSM(self):
+    def open_dsm(self):
         """
         Ouvre l'interface de DSM dans le navigateur par défaut
 
@@ -222,7 +222,6 @@ class SystemTrayApplication(QSystemTrayIcon):
         """
 
         open_new_tab(self.config["Settings"]["DSM_url"])
-
 
     def umount(self, local_path):
         """
@@ -234,7 +233,6 @@ class SystemTrayApplication(QSystemTrayIcon):
         command = "pkexec umount {path}".format(path=local_path)
         os.system(command)
 
-
     def umount_all(self):
         """
         Fonction qui permet de démonter tous les partages
@@ -244,7 +242,6 @@ class SystemTrayApplication(QSystemTrayIcon):
 
         command = "pkexec umount {path}/*".format(path=self.mountpoint)
         os.system(command)
-
 
     def mount_share(self, share_name, menu_action):
         """
@@ -271,8 +268,8 @@ class SystemTrayApplication(QSystemTrayIcon):
         if os.path.ismount(local_path):
             self.umount(local_path)
 
-            #msg = "Le partage {} est déja monté".format(local_path)
-            #self.showMessage("Partage déja monté", msg, 1000)
+            # msg = "Le partage {} est déja monté".format(local_path)
+            # self.showMessage("Partage déja monté", msg, 1000)
 
         # On choisi le protocol actuel pour monter le dossier. Si le partage ne peut pas etre monté avec le protocol actuel,
         # alors on repasse le monte avec l'autre protocole
@@ -299,31 +296,41 @@ class SystemTrayApplication(QSystemTrayIcon):
             remote_path = "{}/{}".format(self.nas_sshfs_base_folder, share_name)
             self.mount_sshfs(remote_path, local_path, menu_action)
 
-
     def mount_nfs(self, remote_path, local_path, menu_action=None):
         """
         Fonction pour monter les partages NFS
 
         :param remote_path: Chemin distant
         :param local_path: Chemin local
+        :menuaction: Passe le menuaction correspondant: si on à un chemin qui est bien monté, alors on coche la case
         :return: None
         """
 
         if os.path.ismount(local_path):
-            self.showMessage("Partage déja monté", "Le partage selectionné est déja monté", 1000)
+            self.showMessage("Partage déja monté", "Le partage selectionné est déja monté", msecs=5000)
 
         else:
             command = "pkexec mount {remote_path} {local_path}".format(remote_path=remote_path, local_path=local_path)
-            #command = "mount -t cifs {} {} -o username={},password={}".format(remotePath, localPath, user, password) #,uid=1000,gid=1000
+            # command = "mount -t cifs {} {} -o username={},password={}".format(remotePath, localPath, user, password) #,uid=1000,gid=1000
             print(command)
-            os.system(command)
-            msg = "Partage: {local_path} monté avec NFS".format(local_path=local_path)
-            self.showMessage("Commande", msg, 1000)
+            return_code = os.system(command)
+            if return_code == 0:
+                msg_title = ""
+                msg_content = "Partage: {local_path} monté via NFS".format(local_path=local_path)
 
-        # On coche l'action dans le menu pour indique le dossier est bien monté
-        if menu_action: # Pour contourner Package qui monte sans action
-            menu_action.setCheckable(True)
-            menu_action.setChecked(True)
+                # On coche l'action dans le menu pour indique le dossier est bien monté
+                if menu_action:  # Pour contourner Package qui monte sans action
+                    menu_action.setCheckable(True)
+                    menu_action.setChecked(True)
+
+            else:
+                msg_title = "Erreur"
+                msg_content = "Une erreur est survenue lors du montage de: {remote_path} (monté avec NFS)".format(remote_path=remote_path, local_path=local_path)
+
+            self.showMessage(msg_title, msg_content, msecs=5000)
+
+
+
 
 
     def mount_sshfs(self, remote_path, local_path, menu_action):
@@ -336,24 +343,25 @@ class SystemTrayApplication(QSystemTrayIcon):
         :return: None
         """
         if not shutil.which("sshfs"):
-            msg = "Le montage <b>{local_path}</b> est configuré pour etre monté avec sshfs. <br>Cependant l'executable sshfs n'est pas installé.".format(local_path=local_path)
+            msg = "Le montage <b>{local_path}</b> est configuré pour etre monté avec sshfs. <br>Cependant l'executable sshfs n'est pas installé.".format(
+                local_path=local_path)
             qmessagebox = QMessageBox(QMessageBox.Critical, "Executable inexistant", msg)
             qmessagebox.show()
             qmessagebox.exec_()
             exit(0)
 
-        else :
-            command = "sshfs {username}@{remote_path} {local_path} -o ro".format(username=self.config["Settings"]["sshfs_user"], remote_path=remote_path, local_path=local_path)
+        else:
+            command = "sshfs {username}@{remote_path} {local_path} -o ro".format(
+                username=self.config["Settings"]["sshfs_user"], remote_path=remote_path, local_path=local_path)
             print(command)
             os.system(command)
             msg = "Partage: {local_path} monté avec SSHFS".format(local_path=local_path)
-            self.showMessage("Commande", msg, 1000)
+            self.showMessage("Commande", msg, msecs=5000)
 
         # On coche l'action dans le menu pour indique le dossier est bien monté
-        if menu_action: # Pour contourner Package qui monte sans action
+        if menu_action:  # Pour contourner Package qui monte sans action
             menu_action.setCheckable(True)
             menu_action.setChecked(True)
-
 
     def close(self):
         self.setVisible(False)
