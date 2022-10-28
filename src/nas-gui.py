@@ -68,7 +68,7 @@ class SystemTrayApplication(QSystemTrayIcon):
 
         # Chemin de base des partages sur le NAS
         self.nas_sshfs_base_folder = "{nas_ip}:".format(nas_ip=self.config["Settings"]["ip"])
-        self.nas_nfs_base_folder = "{nas_ip}:/volume1".format(nas_ip=self.config["Settings"]["ip"])
+        self.nas_nfs_base_folder = "{nas_ip}:".format(nas_ip=self.config["Settings"]["ip"])
 
         # Point de montage par défaut
         self.mountpoint = self.config["Settings"]["default_mountpoint"]
@@ -141,6 +141,7 @@ class SystemTrayApplication(QSystemTrayIcon):
         # Entrées de différents partages
         for folder in self.folders:
             share_name = self.config[folder]["name"]
+            volume = "volume1" if "volume" not in self.config[folder] else self.config[folder]["volume"]
             protocol = "{nfs}{separator}{sshfs}".format(
                 nfs=("nfs" if self.config[folder]["nfs"] == "1" else ""),
                 sshfs=("sshfs" if self.config[folder]["sshfs"] == "1" else ""),
@@ -153,7 +154,7 @@ class SystemTrayApplication(QSystemTrayIcon):
             menu_action = self.menu.addAction(icon, label)
             menu_action.setCheckable(False)
             menu_action.triggered.connect(
-                lambda lamdba, share_name=share_name, menu_action=menu_action: self.mount_share(share_name,
+                lambda lamdba, share_name=share_name, volume=volume, menu_action=menu_action: self.mount_share(share_name, volume,
                                                                                                 menu_action))
 
         # Entrées des différentes actions
@@ -243,7 +244,7 @@ class SystemTrayApplication(QSystemTrayIcon):
         command = "pkexec umount {path}/*".format(path=self.mountpoint)
         os.system(command)
 
-    def mount_share(self, share_name, menu_action):
+    def mount_share(self, share_name, volume, menu_action):
         """
         Fonction pour monter un partage grace à son nom
 
@@ -253,7 +254,7 @@ class SystemTrayApplication(QSystemTrayIcon):
 
         # Pour le partage, on monte un dossier qui n'est pas conventionnel en terme de chemin
         if share_name == "Packages":
-            remote_path = "{}/{}/manjaro/x86_64".format(self.nas_nfs_base_folder, share_name)
+            remote_path = "{}/{}/{}/manjaro/x86_64".format(self.nas_nfs_base_folder, volume, share_name)
             local_path = "/var/cache/pacman/pkg"
             self.mount_nfs(remote_path, local_path)
 
@@ -277,23 +278,23 @@ class SystemTrayApplication(QSystemTrayIcon):
         # On regarde si on peut monter le dossier avec le protocol actuel ou non
         if self.config[share_name][self.current_protocol] == "1":
             if self.current_protocol == "nfs":
-                remote_path = "{}/{}".format(self.nas_nfs_base_folder, share_name)
+                remote_path = "{}/{}/{}".format(self.nas_nfs_base_folder, volume, share_name)
                 self.mount_nfs(remote_path, local_path, menu_action)
 
             elif self.current_protocol == "sshfs":
-                remote_path = "{}/{}".format(self.nas_sshfs_base_folder, share_name)
+                remote_path = "{}/{}/{}".format(self.nas_sshfs_base_folder, volume, share_name)
                 self.mount_sshfs(remote_path, local_path, menu_action)
 
         # Sinon, on le monte avec l'un ou l'autre
 
         # NFS
         elif self.config[share_name]["nfs"] == "1":
-            remote_path = "{}/{}".format(self.nas_nfs_base_folder, share_name)
+            remote_path = "{}/{}/{}".format(self.nas_nfs_base_folder, volume, share_name)
             self.mount_nfs(remote_path, local_path, menu_action)
 
         # sshfs
         elif self.config[share_name]["sshfs"] == "1":
-            remote_path = "{}/{}".format(self.nas_sshfs_base_folder, share_name)
+            remote_path = "{}/{}/{}".format(self.nas_sshfs_base_folder, volume, share_name)
             self.mount_sshfs(remote_path, local_path, menu_action)
 
     def mount_nfs(self, remote_path, local_path, menu_action=None):
