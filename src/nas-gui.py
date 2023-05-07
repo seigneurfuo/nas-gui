@@ -295,7 +295,7 @@ class SystemTrayApplication(QSystemTrayIcon):
             self.showMessage("Partage déja monté", "Le partage selectionné est déja monté", msecs=5000)
 
         else:
-            options = " -o ro " if  self.mount_as_read_only else ""
+            options = " -o ro " if  self.mount_as_read_only else " "
             command = "pkexec mount{options}{remote_path} {local_path}".format(options=options, remote_path=remote_path, local_path=local_path)
 
             # command = "mount -t cifs {} {} -o username={},password={}".format(remotePath, localPath, user, password) #,uid=1000,gid=1000
