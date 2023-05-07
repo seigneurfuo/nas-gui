@@ -12,54 +12,6 @@ from PyQt5.Qt import pyqtSlot
 from PyQt5.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon, QMenu
 from PyQt5.QtGui import QIcon
 
-changelog_message = """
-<b>2022-01-31</b>
- - Récupération du retour de la commande mount afin d'afficher un message différent si quelque chose c'est mal passé.
-
-<b>2020-01-17</b>
- - Ajout du démontage lors du changement de protole.
-
-<b>2020-01-02</b>
- - Ajout d'une nouvelle fonction permettant de changer le protocole utilisé pour monter les partages depuis le menu
- - Modification du fichier de configuration pour prendre en compte le changement de protocole
- - Correction d'une inversion entre le chemin distant entre SSHFS et NFS.
-
-<b>2020-01-01</b>
- - Bonne année 2021!
- - Ajout d'un protocol de connection en sshds afin de permetre de la lecture seule sur certains répertoires. Pas de MDP
-   demandé: Il faut copier ces clefs SSH avec la commande: <i>ssh-copy-id</i>
- - Ajout d'un message d'erreur si le fichier de configuration n'existe pas
-
-<b>2020-05-31</b>
- - Possibilité de configurer le mode de montage (SMB ou NFS) dans le fichier<br>de configuration
-
-<b>2020-05-01</b>
- - Ajout d'un nouveau système dynamique pour la création des entrées dans le menu
- - Déplacement de toutes les informations en dur dans le fichier de configuration<br>(le seul encore en dur est le cache de pacman
- - Nettoyage du code
-
-<b>2020-04-30</b>
- - Déplacement de quelques informations de configuration dans un fichier<br>de configuration: <b><i>~/.config/nas-gui.conf</i></b>
- - Désactivation de la demande de montage quand pamac est ouvert
-
-<b>2020-04-09</b>
- - Modification du chemin pour les paquets Manjaro: x86_64
-
-<b>2020-03-18</b>
- - Ajout d'un nouveau partage "Sauvegarde Web"
- - Correction de la fermeture de l'application
-
-<b>2020-03-15</b>
- - Ajout d'un .desktop dans <b><i>/etc/xdg/autostart/</i></b> pour lancer l'application à chaque démarrage
-
-<b>2019-07-20</b>
- - Ajout d'une entrée "changements"
- - Création automatique des répertoires de montage s'ils n'existent pas
- - Ajout d'un choix qui permet d'afficher l'espace utilisé pour chaque partage
- - Ajout d'un lien pour acceder à la page DSM
-"""
-
-
 class SystemTrayApplication(QSystemTrayIcon):
     def __init__(self):
         super().__init__()
@@ -204,12 +156,24 @@ class SystemTrayApplication(QSystemTrayIcon):
         msg = "Protocole actuel: {protocol}".format(protocol=self.current_protocol)
         menu_action.setText(msg)
 
+    def get_changelog_message(self):
+        files = [os.path.join(os.path.dirname(__file__), "changelog.txt"),
+                 "/usr/share/nas-gui/changelog.txt"]
+
+        for filepath in files:
+            if os.path.isfile(filepath):
+                with open(filepath, "r") as changelog_file:
+                    return changelog_file.read()
+        return ""
+
     def show_changelog(self):
         """
         Affiche la fenêtre des changements
 
         :return: None
         """
+
+        changelog_message = self.get_changelog_message()
 
         msg = "<p>" + changelog_message.replace("\n", "<br>") + "</p>"
         dialog = QMessageBox(QMessageBox.Information, "Liste des changements", msg)
@@ -370,6 +334,9 @@ class SystemTrayApplication(QSystemTrayIcon):
 
 
 if __name__ == '__main__':
+    import cgitb
+    cgitb.enable(format='text')
+
     app = QApplication(sys.argv)
     app.setApplicationName("NAS-Gui")
     app.setQuitOnLastWindowClosed(False)

@@ -17,6 +17,9 @@ package()
 {
 	# Copie du script Python
 	install -Dm644 "${pkgname}.py" "${pkgdir}/usr/bin/${pkgname}.py"
+
+	install -Dm644 "changelog.txt" "${pkgdir}/usr/share/${pkgname}/changelog.txt"
+
 	install -Dm644 "${pkgname}.desktop" "${pkgdir}/usr/share/applications/${pkgname}.desktop"
 	install -Dm644 "${pkgname}-autostart.desktop" "${pkgdir}/etc/xdg/autostart/${pkgname}.desktop"
 }

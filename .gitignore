@@ -1,5 +1,6 @@
 .idea/
-PKGBUILD/nas-gui.py
 PKGBUILD/pkg/
 PKGBUILD/src/
 PKGBUILD/*.pkg.*
+PKGBUILD/*.py
+PKGBUILD/*.txt
