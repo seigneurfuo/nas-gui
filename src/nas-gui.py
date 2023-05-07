@@ -29,6 +29,7 @@ class SystemTrayApplication(QSystemTrayIcon):
         self.protocols = ["nfs", "sshfs"]
         self.protocol_index = 0
         self.current_protocol = self.protocols[self.protocol_index]
+        self.mount_as_read_only = True
 
         # On veut récupérer la liste des partages. Chaque partage est definit en tant que section dans le fichier.
         # Seule la section Settings est à retirer
@@ -82,12 +83,20 @@ class SystemTrayApplication(QSystemTrayIcon):
 
         self.menu = QMenu()
 
-        # Boutton de modification du protocole
+        # Bouton de modification du protocole
         self.menu.addSeparator()
+
         protocol_change_checkbox = self.menu.addAction(QIcon(), "")
         protocol_change_checkbox.setCheckable(False)
         protocol_change_checkbox.triggered.connect(self.on_protocol_change_checkbox_clicked)
         self.protocol_label_set_text(protocol_change_checkbox)
+
+        # Bouton de modification de lecture seule
+        read_only_mount_checkbox = self.menu.addAction(QIcon(), "")
+        read_only_mount_checkbox.setCheckable(False)
+        read_only_mount_checkbox.triggered.connect(self.on_mount_as_read_only_option_change_checkbox_clicked)
+        self.mount_as_read_only_label_set_text(read_only_mount_checkbox)
+
         self.menu.addSeparator()
 
         # Entrées de différents partages
@@ -106,8 +115,8 @@ class SystemTrayApplication(QSystemTrayIcon):
             menu_action = self.menu.addAction(icon, label)
             menu_action.setCheckable(False)
             menu_action.triggered.connect(
-                lambda lamdba, share_name=share_name, volume=volume, menu_action=menu_action: self.mount_share(share_name, volume,
-                                                                                                menu_action))
+                lambda lamdba, share_name=share_name, volume=volume,
+                       menu_action=menu_action: self.mount_share(share_name, volume, menu_action))
 
         # Entrées des différentes actions
         for action in self.actions:
@@ -143,7 +152,7 @@ class SystemTrayApplication(QSystemTrayIcon):
         self.protocol_label_set_text(menu_action)
 
         # Permet de réafficher le menu (en tant normal, le menu se ferme si l'on clique sur une des actions)
-        self.contextMenu().show()
+        #self.contextMenu().show()
 
     def protocol_label_set_text(self, menu_action):
         """
@@ -154,6 +163,17 @@ class SystemTrayApplication(QSystemTrayIcon):
         """
 
         msg = "Protocole actuel: {protocol}".format(protocol=self.current_protocol)
+        menu_action.setText(msg)
+
+    @pyqtSlot()
+    def on_mount_as_read_only_option_change_checkbox_clicked(self):
+        menu_action = self.sender()
+        self.mount_as_read_only = not self.mount_as_read_only
+
+        self.mount_as_read_only_label_set_text(menu_action)
+
+    def mount_as_read_only_label_set_text(self, menu_action):
+        msg = "Lecture seule" if self.mount_as_read_only else "Lecture / Ecriture"
         menu_action.setText(msg)
 
     def get_changelog_message(self):
@@ -275,13 +295,15 @@ class SystemTrayApplication(QSystemTrayIcon):
             self.showMessage("Partage déja monté", "Le partage selectionné est déja monté", msecs=5000)
 
         else:
-            command = "pkexec mount {remote_path} {local_path}".format(remote_path=remote_path, local_path=local_path)
+            options = " -o ro " if  self.mount_as_read_only else ""
+            command = "pkexec mount{options}{remote_path} {local_path}".format(options=options, remote_path=remote_path, local_path=local_path)
+
             # command = "mount -t cifs {} {} -o username={},password={}".format(remotePath, localPath, user, password) #,uid=1000,gid=1000
             print(command)
             return_code = os.system(command)
             if return_code == 0:
                 msg_title = ""
-                msg_content = "Partage: {local_path} monté via NFS".format(local_path=local_path)
+                msg_content = "Partage: {local_path} monté via NFS\n{command}".format(local_path=local_path, command=command)
 
                 # On coche l'action dans le menu pour indique le dossier est bien monté
                 if menu_action:  # Pour contourner Package qui monte sans action
@@ -293,10 +315,6 @@ class SystemTrayApplication(QSystemTrayIcon):
                 msg_content = "Une erreur est survenue lors du montage de: {remote_path} (monté avec NFS)".format(remote_path=remote_path, local_path=local_path)
 
             self.showMessage(msg_title, msg_content, msecs=5000)
-
-
-
-
 
     def mount_sshfs(self, remote_path, local_path, menu_action):
         """

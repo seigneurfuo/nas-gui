@@ -1,3 +1,7 @@
+<b>2023-05-07</b>
+ - Ajout d'une option de montage en lecture seule disponible pour les montages NFS.
+ - Passage du changelog dans un fichier à part et non plus dans le code.
+
 <b>2022-10-28</b>
  - Ajout de la possibilité de spécifier le volume sur lequel se trouve le dossier
    (par défaut c'est /voiume1 si rien le partage ne contiends pas la valeur "volume=" dans le fichier de configuration.
