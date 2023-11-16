@@ -1,3 +1,6 @@
+<b>2023-11-16</b>
+ - Passage à PyQt6
+
 <b>2023-05-07</b>
  - Ajout d'une option de montage en lecture seule disponible pour les montages NFS.
  - Passage du changelog dans un fichier à part et non plus dans le code.
