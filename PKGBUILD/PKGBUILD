@@ -2,14 +2,14 @@
 # Contributor: Agnésa Théo <seigneurfuo@protonmail.com>
 
 pkgname=nas-gui
-pkgver=2023.05.07
-pkgrel=2
+pkgver="2023.11.16"
+pkgrel=1
 pkgdesc="Un programme qui permet de monter les partages réseaux du NAS depuis la zone de notification"
 arch=("any")
 url="https://seigneurfuo.wordpress.com"
 license=('NONE')
 groups=("★ seigneurfuo: Paquets persos")
-depends=('python' 'python-pyqt5')
+depends=('python' 'python-pyqt6')
 source=("${pkgname}.py" "changelog.txt" "${pkgname}.desktop" "${pkgname}-autostart.desktop")
 md5sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
 
