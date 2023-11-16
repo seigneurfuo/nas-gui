@@ -352,9 +352,6 @@ class SystemTrayApplication(QSystemTrayIcon):
 
 
 if __name__ == '__main__':
-    import cgitb
-    cgitb.enable(format='text')
-
     app = QApplication(sys.argv)
     app.setApplicationName("NAS-Gui")
     app.setQuitOnLastWindowClosed(False)
