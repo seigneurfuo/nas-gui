@@ -69,7 +69,7 @@ class SystemTrayApplication(QSystemTrayIcon):
                 self.config_file_path)
             qmessagebox = QMessageBox(QMessageBox.Critical, "Fichier de configuration inexistant", msg)
             qmessagebox.show()
-            qmessagebox.exec_()
+            qmessagebox.exec()
             exit(0)
 
         self.config.read(self.config_file_path)
@@ -197,7 +197,7 @@ class SystemTrayApplication(QSystemTrayIcon):
 
         msg = "<p>" + changelog_message.replace("\n", "<br>") + "</p>"
         dialog = QMessageBox(QMessageBox.Information, "Liste des changements", msg)
-        dialog.exec_()
+        dialog.exec()
 
     def open_dsm(self):
         """
@@ -330,7 +330,7 @@ class SystemTrayApplication(QSystemTrayIcon):
                 local_path=local_path)
             qmessagebox = QMessageBox(QMessageBox.Critical, "Executable inexistant", msg)
             qmessagebox.show()
-            qmessagebox.exec_()
+            qmessagebox.exec()
             exit(0)
 
         else:
@@ -362,4 +362,4 @@ if __name__ == '__main__':
     system_tray_application = SystemTrayApplication()
     system_tray_application.show()
 
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
