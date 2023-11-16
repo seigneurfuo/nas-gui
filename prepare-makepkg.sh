@@ -1,4 +1,4 @@
 #!/bin/bash
 cd "PKGBUILD"
-ln -s "../src/nas-gui.py" .
-ln -s "../src/changelog.txt" .
+ln -s -v -f "../src/nas-gui.py" .
+ln -s -v -f "../src/changelog.txt" .
