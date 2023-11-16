@@ -8,9 +8,9 @@ import shutil
 from pathlib import Path
 from webbrowser import open_new_tab
 
-from PyQt5.Qt import pyqtSlot
-from PyQt5.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon, QMenu
-from PyQt5.QtGui import QIcon
+from PyQt6.QtCore import pyqtSlot
+from PyQt6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon, QMenu
+from PyQt6.QtGui import QIcon
 
 class SystemTrayApplication(QSystemTrayIcon):
     def __init__(self):
