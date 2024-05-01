@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=NAS Gui
+Comment[fr_FR]=Application en zone de notification pour monter les différents partages du NAS
+Exec=python /usr/bin/nas-gui.py
+Icon=python
+Terminal=false
+Type=Application
+Categories=Utility;

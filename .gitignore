@@ -1,6 +1,9 @@
 .idea/
-PKGBUILD/pkg/
-PKGBUILD/src/
-PKGBUILD/*.pkg.*
-PKGBUILD/*.py
-PKGBUILD/*.txt
+packaging/PKGBUILD/pkg/
+packaging/PKGBUILD/src/
+packaging/PKGBUILD/*.pkg.*
+packaging/PKGBUILD/*.py
+packaging/PKGBUILD/*.txt
+
+packaging/debian/*.py
+packaging/debian/*.txt

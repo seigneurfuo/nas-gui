@@ -1,0 +1,9 @@
+Package: nas-gui
+Version: 2023.11.16
+Section: misc
+Priority: optional
+Architecture: all
+Depends: python3-pyqt6
+Maintainer: seigneurfuo
+Description: Un programme qui permet de monter les partages réseaux du NAS
+ depuis la zone de notification

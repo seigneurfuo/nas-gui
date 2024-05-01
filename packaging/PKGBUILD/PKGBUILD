@@ -2,7 +2,7 @@
 # Contributor: Agnésa Théo <seigneurfuo@protonmail.com>
 
 pkgname=nas-gui
-pkgver="2023.11.16"
+pkgver="2024.05.01"
 pkgrel=1
 pkgdesc="Un programme qui permet de monter les partages réseaux du NAS depuis la zone de notification"
 arch=("any")
