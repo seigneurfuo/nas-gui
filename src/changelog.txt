@@ -1,3 +1,6 @@
+<b>2024-05-01</b>
+ - Correction de l'indication du fichier de configuration innexistant pour PyQt6.
+
 <b>2023-11-16</b>
  - Passage à PyQt6
 

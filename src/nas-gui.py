@@ -67,7 +67,7 @@ class SystemTrayApplication(QSystemTrayIcon):
         if not os.path.isfile(self.config_file_path):
             msg = "Fichier de configuration inexistant ! <br> Veuillez renseigner la configuration dans le fichier: <br><b>{}</b>".format(
                 self.config_file_path)
-            qmessagebox = QMessageBox(QMessageBox.Critical, "Fichier de configuration inexistant", msg)
+            qmessagebox = QMessageBox.critical(None, "Fichier de configuration inexistant", msg)
             qmessagebox.show()
             qmessagebox.exec()
             exit(0)
