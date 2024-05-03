@@ -7,3 +7,6 @@ packaging/PKGBUILD/*.txt
 
 packaging/debian/*.py
 packaging/debian/*.txt
+
+packaging/fedora/**/*.rpm
+packaging/fedora/**/*.log
