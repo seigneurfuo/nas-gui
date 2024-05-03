@@ -1,8 +1,8 @@
-# fedpkg --release f$$(rpm -E %fedora) local
-# fedpkg --release f$(rpm -E %fedora) mockbuild --no-clean-all
+# fedpkg --release f39 local
+# fedpkg --release f39 mockbuild --no-clean-all
 
 Name:           nas-gui
-Version:        0.0.1
+Version:        2024.05.01
 Release:        %autorelease
 BuildArch:      noarch
 Summary:        A nsi
